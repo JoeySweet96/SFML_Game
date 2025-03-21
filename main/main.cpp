@@ -1,9 +1,9 @@
+#include "../include/entity.hpp"
+#include "../include/player.hpp"
 #include <SFML/Window.hpp>
-#include<SFML/Graphics.hpp>
-#include<iostream>
+#include <SFML/Graphics.hpp>
+#include <iostream>
 
-//function declarations
-void handleInput(sf::Vector2f& velocity, sf::Vector2f& position, sf::Sprite& sprite, bool& attack, bool& facingRight);
 
 //animation variables
 int frameWidth = 100;
@@ -39,17 +39,15 @@ int main()
 	text.setPosition({20.f, 0.f});
 	slimeText.setPosition({500.f, 0.f});
 
-	//background
-	sf::Texture backgroundTex("sun.png");
-	sf::Sprite background(backgroundTex);
-	background.setScale({5.f, 5.f});
+	//Textures
+	sf::Texture backgroundTex("../assets/sun.png");
+	sf::Texture floorTex("../assets/floor.png");
+	sf::Texture playerTex("../assets/Tiny RPG Character Asset Pack v1.03 -Free Soldier&Orc/Characters(100x100)/Soldier/Soldier/Soldier.png");
 
-	//floor
-	sf::Vector2f fPosition = {-50.f, 520.f};
-	sf::Texture floorTex("floor.png");
-	sf::Sprite floor(floorTex);
-	floor.setPosition(fPosition);
-	floor.setScale({30.f, 5.f});
+	//Entities
+	Entity background(backgroundTex, {0.f, 0.f}, {5.f, 5.f});
+	Entity floor(floorTex, {-50.f, 520.f}, {30.f, 5.f});
+	Player player(playerTex, {200.f, 500.f}, {5.f, 5.f}, {50.f, 46.f});
 
 
 	//npc slime
@@ -57,55 +55,29 @@ int main()
 	bool isHit = false;
 	sf::Vector2f sPosition = {400.f, 520.f};
 	sf::Vector2f sVelocity = {0, 0};
-	sf::Texture slimeTex("grouchslime.png");
-	sf::Texture slimeHurtTex("slimehurt.png");
+	sf::Texture slimeTex("../assets/grouchslime.png");
+	sf::Texture slimeHurtTex("../assets/slimehurt.png");
 	sf::Sprite slime(slimeTex);
 	slime.setPosition(sPosition);
 	slime.setScale({3.0f, 3.0f});
 	slime.setOrigin({slimeTex.getSize().x / 2.f, slimeTex.getSize().y / 2.f});
 
-	//player
-	int pHealth = 5;
-	bool pAttacking = false;
-	sf::Vector2f pPosition = {200.f, 500.f};
-	sf::Vector2f pVelocity = {0.f, 0.f};
-	sf::Texture soldierTex("Tiny RPG Character Asset Pack v1.03 -Free Soldier&Orc/Characters(100x100)/Soldier/Soldier/Soldier.png");
-	sf::Sprite soldier(soldierTex);
-	soldier.setOrigin({50.f, 46.f});
-	soldier.setScale({5.f, 5.f});
-	soldier.setPosition({400.f, 500.f});
-	bool facingRight = true;
-	sf::Vector2f attackPoint;
-	sf::Vector2f hitPointLeft;
-	sf::Vector2f hitPointRight;
+
 
     	while (window.isOpen())
 	{
-		text.setString("Player Health: " + std::to_string(pHealth));
+		//text.setString("Player Health: " + std::to_string(pHealth));
 		slimeText.setString("Slimes Slain: " + std::to_string(slimeCount));
 		//movement
-		pPosition += pVelocity;
 		sPosition += sVelocity;
-		hitPointLeft = {pPosition.x - 10, pPosition.y - 25};
-		hitPointRight = {pPosition.x + 10, pPosition.y - 25};
-		handleInput(pVelocity, pPosition, soldier, pAttacking, facingRight);
-		soldier.setPosition(pPosition);
 		slime.setPosition(sPosition);
 
+		player.handleInput();
+		player.update(gravity);
+
 		//Gravity
-		pVelocity.y += gravity;
 		if(sPosition.y < 520)
 			sVelocity.y += sGravity;
-		//player gravity
-		if(pVelocity.y > 8)
-			pVelocity.y = 8;
-
-		if(pPosition.y > 500)
-		{
-			pVelocity.y = 0;
-			pPosition.y = 500;
-		}
-		//enemy gravity
 		if(sPosition.y > 520)
 		{
 			sVelocity.y = 0;
@@ -113,7 +85,7 @@ int main()
 		}
 
 		//Enemy tracking
-		if(pPosition.x - 20 > sPosition.x)
+		/*if(pPosition.x - 20 > sPosition.x)
 		{
 			sVelocity.x = 1;
 			slime.setScale({-3.0f, 3.0f});
@@ -127,41 +99,41 @@ int main()
 		else
 		{
 			sVelocity.x = 0;
-		}
+		}*/
 
 		//Animation
 		frameCounter++;
 		if(frameCounter > 10)
 		{	//idle
-			if(pVelocity.x == 0 && pAttacking == false)
+			if(player.velocity.x == 0 && player.attacking == false)
 			{
 				walkIndex = 0;
-				soldier.setTextureRect(sf::IntRect({idleIndex * 100, 0}, {100, 100}));
+				player.sprite.setTextureRect(sf::IntRect({idleIndex * 100, 0}, {100, 100}));
 				idleIndex++;
 				frameCounter = 0;
 				if(idleIndex > 5)
 					idleIndex = 0;
 			}
 			//attack
-			if(pAttacking)
+			if(player.attacking)
 			{
 				idleIndex = 0;
-				soldier.setTextureRect(sf::IntRect({attackIndex * 100, 200}, {100, 100}));
+				player.sprite.setTextureRect(sf::IntRect({attackIndex * 100, 200}, {100, 100}));
 				attackIndex++;
 				frameCounter = 0;
 				if(attackIndex > 5)
 				{
 					attackIndex = 0;
-					pAttacking = false;
+					player.attacking = false;
 				}
 			}
 		}
 		if(frameCounter > 6)
 		{	//walking
-			if(pVelocity.x != 0)
+			if(player.velocity.x != 0)
 			{
 				idleIndex = 0;
-				soldier.setTextureRect(sf::IntRect({walkIndex * 100, 100}, {100, 100}));
+				player.sprite.setTextureRect(sf::IntRect({walkIndex * 100, 100}, {100, 100}));
 				walkIndex++;
 				frameCounter = 0;
 				if(walkIndex > 7)
@@ -172,13 +144,9 @@ int main()
 
 		//set your attack points
 		sf::FloatRect slimeBox = slime.getGlobalBounds();
-		if(facingRight)
-			attackPoint = {pPosition.x + 75, pPosition.y};
-		else
-			attackPoint = {pPosition.x - 75, pPosition.y};
 
 		//Check Hitbox --- Switch enemy texture
-		if(pAttacking && slimeBox.contains(attackPoint))
+		if(player.attacking && slimeBox.contains(player.attackPoint))
 		{
 
 			if(attackIndex > 3 && attackIndex < 5)
@@ -196,17 +164,17 @@ int main()
 		}
 
 		//Deinrcrement slimes health on hit
-		if(isHit && !pAttacking)
+		if(isHit && !player.attacking)
 		{
 			sHealth--;
 			isHit = false;
 		}
 		//deincrement player health on hit, start iframes
-		if((slimeBox.contains(hitPointLeft) || slimeBox.contains(hitPointRight)) && iTimer == 0)
+		if((slimeBox.contains(player.hitpointLeft) || slimeBox.contains(player.hitpointRight)) && iTimer == 0)
 		{
 			iTimer = iFrames;
-			pHealth--;
-			pVelocity.y = -3;
+			player.health--;
+			player.velocity.y = -3;
 		}
 		if(iTimer > 0)
 			iTimer--;
@@ -225,15 +193,15 @@ int main()
 
 		//Drawing
 		window.clear();
-		window.draw(background);
-		window.draw(floor);
+		window.draw(background.sprite);
+		window.draw(floor.sprite);
 		window.draw(text);
 		window.draw(slimeText);
 		window.draw(slime);
-		window.draw(soldier);
+		window.draw(player.sprite);
 		window.display();
 
-		if(pHealth == 0)
+		if(player.health == 0)
 			window.close();
 
 		//---Window will stop responding if its not polling for events---//
@@ -246,42 +214,3 @@ int main()
     	}
 }
 
-
-//function definitions
-void handleInput(sf::Vector2f& velocity, sf::Vector2f& position, sf::Sprite& sprite, bool& attack, bool& facingRight)
-{
-	if(attack == false)
-	{
-		if(sf::Keyboard::isKeyPressed(sf::Keyboard::Key::A) || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Left))
-		{
-			velocity.x = -3.5;
-			sprite.setScale({-5.f, 5.f});
-			facingRight = false;
-		}
-		else if(sf::Keyboard::isKeyPressed(sf::Keyboard::Key::D) || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Right))
-		{
-			velocity.x = 3.5;
-			sprite.setScale({5.f, 5.f});
-			facingRight = true;
-		}
-		else
-		{
-			velocity.x = 0.f;
-		}
-	}
-
-	if(sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Num1))
-	{
-		velocity.x = 0.f;
-		attack = true;
-	}
-
-	if(sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Space) && position.y == 500)
-	{
-		velocity.y = -8.f;
-	}
-
-	if(sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Escape))
-		window.close();
-
-}
