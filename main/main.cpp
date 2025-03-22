@@ -1,5 +1,6 @@
 #include "../include/entity.hpp"
 #include "../include/player.hpp"
+#include "../include/slime.hpp"
 #include <SFML/Window.hpp>
 #include <SFML/Graphics.hpp>
 #include <iostream>
@@ -43,63 +44,24 @@ int main()
 	sf::Texture backgroundTex("../assets/sun.png");
 	sf::Texture floorTex("../assets/floor.png");
 	sf::Texture playerTex("../assets/Tiny RPG Character Asset Pack v1.03 -Free Soldier&Orc/Characters(100x100)/Soldier/Soldier/Soldier.png");
+	sf::Texture slimeTex("../assets/grouchslime.png");
+	sf::Texture slimeHurtTex("../assets/slimehurt.png");
 
 	//Entities
 	Entity background(backgroundTex, {0.f, 0.f}, {5.f, 5.f});
 	Entity floor(floorTex, {-50.f, 520.f}, {30.f, 5.f});
 	Player player(playerTex, {200.f, 500.f}, {5.f, 5.f}, {50.f, 46.f});
-
-
-	//npc slime
-	int sHealth = 5;
-	bool isHit = false;
-	sf::Vector2f sPosition = {400.f, 520.f};
-	sf::Vector2f sVelocity = {0, 0};
-	sf::Texture slimeTex("../assets/grouchslime.png");
-	sf::Texture slimeHurtTex("../assets/slimehurt.png");
-	sf::Sprite slime(slimeTex);
-	slime.setPosition(sPosition);
-	slime.setScale({3.0f, 3.0f});
-	slime.setOrigin({slimeTex.getSize().x / 2.f, slimeTex.getSize().y / 2.f});
-
-
+	Slime slime(slimeTex, {400.f, 520.f}, {3.f, 3.f}, {slimeTex.getSize().x / 2.f, slimeTex.getSize().y / 2.f});
 
     	while (window.isOpen())
 	{
 		//text.setString("Player Health: " + std::to_string(pHealth));
 		slimeText.setString("Slimes Slain: " + std::to_string(slimeCount));
-		//movement
-		sPosition += sVelocity;
-		slime.setPosition(sPosition);
 
+		//movement
 		player.handleInput();
 		player.update(gravity);
-
-		//Gravity
-		if(sPosition.y < 520)
-			sVelocity.y += sGravity;
-		if(sPosition.y > 520)
-		{
-			sVelocity.y = 0;
-			sPosition.y = 520;
-		}
-
-		//Enemy tracking
-		/*if(pPosition.x - 20 > sPosition.x)
-		{
-			sVelocity.x = 1;
-			slime.setScale({-3.0f, 3.0f});
-
-		}
-		else if(pPosition.x + 20 < sPosition.x)
-		{
-			sVelocity.x = -1;
-			slime.setScale({3.0f, 3.0f});
-		}
-		else
-		{
-			sVelocity.x = 0;
-		}*/
+		slime.update(gravity, player.sprite.getPosition().x);
 
 		//Animation
 		frameCounter++;
@@ -142,35 +104,32 @@ int main()
 
 		}
 
-		//set your attack points
-		sf::FloatRect slimeBox = slime.getGlobalBounds();
-
 		//Check Hitbox --- Switch enemy texture
-		if(player.attacking && slimeBox.contains(player.attackPoint))
+		if(player.attacking && slime.hitBox.contains(player.attackPoint))
 		{
 
 			if(attackIndex > 3 && attackIndex < 5)
 			{
-				isHit = true;
-				slime.setTexture(slimeHurtTex);
-				sVelocity.x = 0;
+				slime.isHit = true;
+				slime.sprite.setTexture(slimeHurtTex);
+				slime.velocity.x = 0;
 			}
 
 
 		}
 		else
 		{
-			slime.setTexture(slimeTex);
+			slime.sprite.setTexture(slimeTex);
 		}
 
 		//Deinrcrement slimes health on hit
-		if(isHit && !player.attacking)
+		if(slime.isHit && !player.attacking)
 		{
-			sHealth--;
-			isHit = false;
+			slime.health--;
+			slime.isHit = false;
 		}
 		//deincrement player health on hit, start iframes
-		if((slimeBox.contains(player.hitpointLeft) || slimeBox.contains(player.hitpointRight)) && iTimer == 0)
+		if((slime.hitBox.contains(player.hitpointLeft) || slime.hitBox.contains(player.hitpointRight)) && iTimer == 0)
 		{
 			iTimer = iFrames;
 			player.health--;
@@ -180,16 +139,12 @@ int main()
 			iTimer--;
 
 		//respawn slime if killed
-		if(sHealth == 0)
+		if(slime.health == 0)
 		{
 			slimeCount++;
-			sPosition = {400, -100};
-			sHealth = 5;
+			slime.sprite.setPosition({400, -100});
+			slime.health = 5;
 		}
-
-		//test output
-		//std::cout << sHealth << ", " << pHealth << std::endl;
-		//std::cout << frameCounter << ", " << idleIndex << ", " << walkIndex << ", " << attackIndex << ", " << pAttacking << std::endl;
 
 		//Drawing
 		window.clear();
@@ -197,7 +152,7 @@ int main()
 		window.draw(floor.sprite);
 		window.draw(text);
 		window.draw(slimeText);
-		window.draw(slime);
+		window.draw(slime.sprite);
 		window.draw(player.sprite);
 		window.display();
 
