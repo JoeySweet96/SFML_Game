@@ -6,27 +6,19 @@
 #include <iostream>
 
 
-//animation variables
-int frameWidth = 100;
-int frameHeight = 100;
-int idleIndex = 0;
-int walkIndex = 0;
-int attackIndex = 0;
-int frameCounter = 0;
-
 float gravity = .4;
-float sGravity = .7;
-
 int iFrames = 60;
 int iTimer = 0;
-
 int slimeCount = 0;
 
-sf::RenderWindow window(sf::VideoMode({800, 600}), "Slime man and Knight");
+sf::RenderWindow window(sf::VideoMode({1280, 720}), "Slime man and Knight");
 
 int main()
 {
 	window.setVerticalSyncEnabled(true);
+	sf::Clock clock;
+
+	sf::View view(sf::FloatRect({0.f, 0.f}, {1280.f, 720.f}));
 
 
 	//Player health & slimes killed strings
@@ -48,116 +40,88 @@ int main()
 	sf::Texture slimeHurtTex("../assets/slimehurt.png");
 
 	//Entities
-	Entity background(backgroundTex, {0.f, 0.f}, {5.f, 5.f});
-	Entity floor(floorTex, {-50.f, 520.f}, {30.f, 5.f});
-	Player player(playerTex, {200.f, 500.f}, {5.f, 5.f}, {50.f, 46.f});
-	Slime slime(slimeTex, {400.f, 520.f}, {3.f, 3.f}, {slimeTex.getSize().x / 2.f, slimeTex.getSize().y / 2.f});
+	Entity background(backgroundTex, {0.f, 0.f}, {8.f, 7.f});
+	Entity leftBg(backgroundTex, {-1280.f, 0.f}, {8.f, 7.f});
+	Entity rightBg(backgroundTex, {1280.f, 0.f}, {8.f, 7.f});
+	Entity floor(floorTex, {0.f, 640.f}, {45.f, 5.f});
+	Entity lfloor(floorTex, {-1340.f, 640.f}, {47.f, 5.f});
+	Entity rfloor(floorTex, {1280.f, 640.f}, {45.f, 5.f});
+	Player player(playerTex, {200.f, 620.f}, {5.f, 5.f}, {50.f, 46.f});
+
+	//slimes
+	std::vector<Slime> slimes;
+	float slimeSpawnTimer = 0;
+	const float slimeSpawnInterval = 10.f;
+	slimes.emplace_back(slimeTex, sf::Vector2f({400.f, -100.f}), sf::Vector2f({3.f, 3.f}),sf::Vector2f({slimeTex.getSize().x / 2.f, slimeTex.getSize().y / 2.f}));
+	int slimeSpawnPicker = 1;
 
     	while (window.isOpen())
 	{
-		//text.setString("Player Health: " + std::to_string(pHealth));
+		sf::Time dt = clock.restart();
+		float deltaTime = dt.asSeconds();
+		text.setString("Player Health: " + std::to_string(player.health));
 		slimeText.setString("Slimes Slain: " + std::to_string(slimeCount));
+
+		//camera
+		view.setCenter({player.sprite.getPosition().x, window.getSize().y / 2.f});
+		if(view.getCenter().x < -640)
+			view.setCenter({-640.f, window.getSize().y / 2.f});
+		if(view.getCenter().x > 1920)
+			view.setCenter({1920.f, window.getSize().y / 2.f});
+		window.setView(view);
+
+		slimeSpawnTimer += deltaTime;
+		if(slimeSpawnTimer >= slimeSpawnInterval)
+		{
+			if(slimeSpawnPicker % 2 == 0)
+				slimes.emplace_back(slimeTex, sf::Vector2f({400.f, -100.f}), sf::Vector2f({3.f, 3.f}),sf::Vector2f({slimeTex.getSize().x / 2.f, slimeTex.getSize().y / 2.f}));
+			else
+				slimes.emplace_back(slimeTex, sf::Vector2f({-800.f, -100.f}), sf::Vector2f({3.f, 3.f}),sf::Vector2f({slimeTex.getSize().x / 2.f, slimeTex.getSize().y / 2.f}));
+			slimeSpawnPicker++;
+			slimeSpawnTimer = 0;
+		}
 
 		//movement
 		player.handleInput();
-		player.update(gravity);
-		slime.update(gravity, player.sprite.getPosition().x);
+		player.update(gravity, deltaTime);
 
-		//Animation
-		frameCounter++;
-		if(frameCounter > 10)
-		{	//idle
-			if(player.velocity.x == 0 && player.attacking == false)
-			{
-				walkIndex = 0;
-				player.sprite.setTextureRect(sf::IntRect({idleIndex * 100, 0}, {100, 100}));
-				idleIndex++;
-				frameCounter = 0;
-				if(idleIndex > 5)
-					idleIndex = 0;
-			}
-			//attack
-			if(player.attacking)
-			{
-				idleIndex = 0;
-				player.sprite.setTextureRect(sf::IntRect({attackIndex * 100, 200}, {100, 100}));
-				attackIndex++;
-				frameCounter = 0;
-				if(attackIndex > 5)
-				{
-					attackIndex = 0;
-					player.attacking = false;
-				}
-			}
-		}
-		if(frameCounter > 6)
-		{	//walking
-			if(player.velocity.x != 0)
-			{
-				idleIndex = 0;
-				player.sprite.setTextureRect(sf::IntRect({walkIndex * 100, 100}, {100, 100}));
-				walkIndex++;
-				frameCounter = 0;
-				if(walkIndex > 7)
-					walkIndex = 0;
-			}
-
-		}
-
-		//Check Hitbox --- Switch enemy texture
-		if(player.attacking && slime.hitBox.contains(player.attackPoint))
+		//player slime logic
+		for(auto& slime: slimes)
 		{
+			slime.update(gravity, player.sprite.getPosition().x);
+			player.hitLanded(slime);
+			slime.takeDamage(deltaTime, slimeTex, slimeHurtTex);
+			if(player.iframes <=0)
+				player.playerHit(slime);
 
-			if(attackIndex > 3 && attackIndex < 5)
-			{
-				slime.isHit = true;
-				slime.sprite.setTexture(slimeHurtTex);
-				slime.velocity.x = 0;
-			}
-
-
-		}
-		else
-		{
-			slime.sprite.setTexture(slimeTex);
+			//respawn slime if killed
+			slime.respawn(slimeCount);
 		}
 
-		//Deinrcrement slimes health on hit
-		if(slime.isHit && !player.attacking)
-		{
-			slime.health--;
-			slime.isHit = false;
-		}
-		//deincrement player health on hit, start iframes
-		if((slime.hitBox.contains(player.hitpointLeft) || slime.hitBox.contains(player.hitpointRight)) && iTimer == 0)
-		{
-			iTimer = iFrames;
-			player.health--;
-			player.velocity.y = -3;
-		}
-		if(iTimer > 0)
-			iTimer--;
-
-		//respawn slime if killed
-		if(slime.health == 0)
-		{
-			slimeCount++;
-			slime.sprite.setPosition({400, -100});
-			slime.health = 5;
-		}
+		if(player.iframes > 0)
+			player.iframes--;
+		if(player.health == 0)
+			window.close();
+		//-----------------------------------------------------------------------------------------------------------------------------------//
 
 		//Drawing
 		window.clear();
+		window.draw(leftBg.sprite);
+		window.draw(rightBg.sprite);
 		window.draw(background.sprite);
 		window.draw(floor.sprite);
+		window.draw(lfloor.sprite);
+		window.draw(rfloor.sprite);
 		window.draw(text);
 		window.draw(slimeText);
-		window.draw(slime.sprite);
+		for(auto& slime: slimes)
+			window.draw(slime.sprite);
 		window.draw(player.sprite);
 		window.display();
 
-		if(player.health == 0)
+		if(sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Escape))
 			window.close();
+
 
 		//---Window will stop responding if its not polling for events---//
 		while (const std::optional event = window.pollEvent())
